@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Broadloom Contract">
+<meta name="theme-color" content="#F3EDE2">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="apple-touch-icon.png">
+<title>Broadloom Contract Catalog</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500&display=swap">
+<style>
+/* Layout: a horizontal deck of full-screen pages (cover, one page per SKU, price-list appendix) under a fixed top bar.
+   Each SKU page = photo column | details, with per-sq-ft rates on top and the standard-size grid beneath. */
+:root{
+  --paper:#F3EDE2; --card:#FBF8F2; --linen:#E8E1D5; --sand:#C7BDB0; --ink:#1A1A1A; --slate:#55504A; --stone:#8A8178;
+  --head-fg:#FBF8F2; --head-bg:#2E2B28;
+  --tex:#A9654A; --flat:#5E6B3E; --plush:#2E3D57; --lus:#B87A22;
+  --serif:'Cormorant Garamond','Garamond','Times New Roman',serif;
+  --sans:'Helvetica Neue','Helvetica','Arial',sans-serif;
+  --scrim:rgba(26,26,26,.4);
+  --ok:#4F5C30; --warn:#A5651A; --bad:#9A3F27;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#1C1A17; --card:#25221E; --linen:#2F2B26; --sand:#4A443D; --ink:#F1EBE1; --slate:#BDB4A8; --stone:#968C80;
+  --head-fg:#1C1A17; --head-bg:#D9CFBF;
+  --tex:#D08A6C; --flat:#9DAA74; --plush:#8EA3C8; --lus:#E0A955; --scrim:rgba(0,0,0,.6); --ok:#A9B87E; --warn:#E3A857; --bad:#E08A6E; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --paper:#1C1A17; --card:#25221E; --linen:#2F2B26; --sand:#4A443D; --ink:#F1EBE1; --slate:#BDB4A8; --stone:#968C80;
+  --head-fg:#1C1A17; --head-bg:#D9CFBF;
+  --tex:#D08A6C; --flat:#9DAA74; --plush:#8EA3C8; --lus:#E0A955; --scrim:rgba(0,0,0,.6); --ok:#A9B87E; --warn:#E3A857; --bad:#E08A6E; color-scheme:dark }
+
+html,body{height:100%;overflow:hidden}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:14px;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+
+#app{height:100%;display:flex;flex-direction:column}
+#bar{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:58px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:7px;
+  border-bottom:1px solid var(--sand);background:var(--paper)}
+.brand{display:flex;align-items:baseline;gap:12px;min-width:0;overflow:hidden}
+.bwrap{display:flex;align-items:baseline;gap:8px;flex:0 0 auto}
+.bed{font-size:9px;letter-spacing:.2em;font-weight:700;color:var(--slate)}
+@media (max-width:760px){.bwrap{flex-direction:column;gap:1px}.bwrap .bname{font-size:18px;line-height:1}.bed{font-size:8px}}
+.bmark{font-weight:700;font-size:12px;letter-spacing:-.01em;white-space:nowrap}
+.bname{font-family:var(--serif);font-size:20px;white-space:nowrap}
+.bctx{font-size:9px;letter-spacing:.16em;color:var(--slate);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:uppercase}
+.nav{display:flex;align-items:center;gap:6px;flex:0 0 auto}
+.tbtn,.nbtn{height:42px;display:flex;align-items:center;justify-content:center;gap:8px;background:transparent;border:1px solid var(--sand);cursor:pointer;border-radius:0}
+.tbtn{padding:0 14px;font-size:9px;letter-spacing:.15em}
+.nbtn{width:42px;padding:0}
+.tbtn:hover,.nbtn:hover{border-color:var(--ink)}
+.tbtn:active,.nbtn:active{transform:scale(.98)}
+.nbtn[disabled]{opacity:.3;cursor:default}
+.count{font-size:10px;letter-spacing:.12em;color:var(--slate);min-width:58px;text-align:center}
+
+#deck{flex:1 1 auto;min-height:0;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-x:contain}
+#deck::-webkit-scrollbar{display:none}
+.pg{flex:0 0 100%;width:100%;height:100%;scroll-snap-align:start;scroll-snap-stop:always;overflow-y:auto;overflow-x:hidden}
+.pgin{min-height:100%;display:flex;flex-direction:column;padding-block:22px 22px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));max-width:1360px;margin:0 auto}
+@media (min-width:760px){.pgin{padding-left:max(30px,env(safe-area-inset-left,0px));padding-right:max(30px,env(safe-area-inset-right,0px))}}
+#prog{flex:0 0 auto;height:3px;background:var(--linen)}
+#progfill{height:100%;width:0;background:var(--ink);transition:width .24s ease-out}
+
+/* SKU page */
+.accbar{height:5px;width:96px;margin-bottom:10px}
+.phead{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--ink);padding-bottom:9px;margin-bottom:18px}
+.pcoll{font-size:11px;letter-spacing:.2em;text-transform:uppercase}
+.pmeta{font-size:9px;letter-spacing:.15em;color:var(--slate);text-transform:uppercase}
+:root{--imgcol:minmax(0,38%)}
+html.img-wide{--imgcol:minmax(0,48%)}
+html.img-narrow{--imgcol:minmax(0,30%)}
+.pbody{flex:1 1 auto;display:grid;grid-template-columns:var(--imgcol) minmax(0,1fr);gap:34px;min-height:0}
+.pimg{background:var(--linen);overflow:hidden;min-height:420px;position:relative}
+.pimg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+html.fit-whole .pimg img{object-fit:contain}
+.pinfo{min-width:0;display:flex;flex-direction:column}
+.pcode{font-size:11px;letter-spacing:.2em;font-weight:700}
+.pname{font-family:var(--serif);font-weight:400;font-size:clamp(40px,5.2vw,60px);line-height:1;margin:6px 0 0;text-wrap:balance}
+.pname.tbd{color:var(--stone)}
+.prule{height:3px;width:52px;margin:16px 0 16px}
+.pspecs{display:grid;grid-template-columns:1fr 1fr;gap:0 28px;margin:0}
+.spec{display:flex;align-items:baseline;justify-content:space-between;gap:12px;border-bottom:1px solid var(--sand);padding:6px 0}
+.spec dt{font-size:8.5px;letter-spacing:.14em;color:var(--slate);white-space:nowrap;text-transform:uppercase}
+.spec dd{font-size:12px;margin:0;text-align:right}
+.pprice{margin-top:22px;display:flex;flex-direction:column;gap:16px}
+.plbl{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+.plbl span{font-size:8.5px;letter-spacing:.16em;color:var(--slate);text-transform:uppercase}
+.plbl b{font-weight:700;color:var(--ink)}
+.tw{overflow-x:auto}
+table.ct{width:100%;min-width:560px;border-collapse:collapse;table-layout:fixed}
+.ct th{font-weight:400;font-size:8.5px;letter-spacing:.13em;color:var(--head-fg);background:var(--head-bg);padding:7px 8px;text-align:right;text-transform:uppercase}
+.ct th:first-child,.ct td:first-child{text-align:left;width:18%}
+.ct td{font-size:12px;padding:6px 8px;border-bottom:1px solid var(--sand);background:var(--card);text-align:right;color:var(--slate)}
+.ct tbody tr:nth-child(even) td{background:var(--paper)}
+.ct td:first-child{color:var(--ink);letter-spacing:.04em}
+.ct td:nth-child(2),.ct td:nth-child(3){color:var(--ink)}
+.ct td:nth-child(3),.ct th:nth-child(3),.ct td:first-child,.ct th:first-child{border-right:1px solid var(--sand)}
+.ct.rate td{font-size:15px;color:var(--ink);background:var(--card);border-bottom:2px solid var(--acc,var(--ink))}
+.ct.rate td:first-child{font-size:9px;letter-spacing:.14em;color:var(--slate)}
+.ct.rate td:nth-child(2),.ct.rate td:nth-child(3){font-weight:700}
+.note{font-size:10.5px;line-height:1.6;color:var(--slate);margin:6px 0 0;max-width:68ch}
+html.pub-only .ct th:nth-child(n+4),html.pub-only .ct td:nth-child(n+4){display:none}
+html.pub-only table.ct{min-width:0}
+html.pub-only .ct.apx th:nth-child(n+4),html.pub-only .ct.apx td:nth-child(n+4){display:table-cell}
+html.pub-only .ct.apx th:nth-child(n+5),html.pub-only .ct.apx td:nth-child(n+5){display:none}
+
+/* cover */
+.cover .pgin{justify-content:space-between;gap:36px}
+.ctop{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;border-bottom:1px solid var(--ink);padding-bottom:14px}
+.jl{font-weight:700;font-size:22px;line-height:1.02;letter-spacing:-.01em}
+.ceyebrow{font-size:9px;letter-spacing:.2em;color:var(--slate);text-transform:uppercase;text-align:right;line-height:1.7}
+.ctitle{font-family:var(--serif);font-weight:400;font-size:clamp(52px,9vw,112px);line-height:.95;margin:0;letter-spacing:-.01em;text-wrap:balance}
+.ctitle em{font-style:italic;color:var(--slate)}
+.csub{font-size:10px;letter-spacing:.2em;color:var(--slate);text-transform:uppercase;margin-top:18px}
+.cats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px}
+.cat{display:flex;flex-direction:column;gap:10px;text-align:left;background:transparent;border:0;padding:0;cursor:pointer}
+.cat .sw{height:8px}
+.cat .cn{font-size:10px;letter-spacing:.16em;text-transform:uppercase}
+.cat .cc{font-size:11px;color:var(--slate)}
+.cat:hover .cn{text-decoration:underline;text-underline-offset:3px}
+.cfoot{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:10.5px;color:var(--slate);border-top:1px solid var(--sand);padding-top:12px}
+.cfoot kbd{font-family:var(--sans);border:1px solid var(--sand);padding:1px 5px;font-size:10px}
+
+/* appendix */
+.apxgrp td{background:var(--linen)!important;color:var(--ink)!important;font-size:9.5px!important;letter-spacing:.16em;text-transform:uppercase;text-align:left!important}
+.apxgrp i{display:inline-block;width:8px;height:8px;margin-right:8px;vertical-align:0}
+.ct.apx th:first-child,.ct.apx td:first-child{width:11%}
+.ct.apx th:nth-child(2),.ct.apx td:nth-child(2){width:15%;text-align:left;color:var(--slate)}
+.ct.apx td:first-child{cursor:pointer;text-decoration:underline;text-decoration-color:var(--sand);text-underline-offset:3px}
+.ct.apx td:nth-child(3),.ct.apx td:nth-child(4){color:var(--ink)}
+.ct.apx td:nth-child(2),.ct.apx th:nth-child(2){border-right:1px solid var(--sand)}
+.ct.apx td:nth-child(3),.ct.apx th:nth-child(3){border-right:0}
+.ct.apx td:nth-child(4),.ct.apx th:nth-child(4){border-right:1px solid var(--sand)}
+table.apx{min-width:720px}
+
+/* overlays */
+.ovl{position:fixed;inset:0;background:var(--scrim);display:none;z-index:40;padding-top:env(safe-area-inset-top,0px)}
+.ovl.on{display:flex;justify-content:center;align-items:flex-start}
+.sheet{background:var(--paper);width:min(1100px,100%);max-height:100%;display:flex;flex-direction:column;border-bottom:1px solid var(--sand)}
+.shead{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:10px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));border-bottom:1px solid var(--sand)}
+.stitle{font-size:11px;letter-spacing:.2em;text-transform:uppercase}
+.sbody{overflow-y:auto;padding-block:16px 24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+#q{width:100%;height:44px;border:1px solid var(--sand);background:var(--card);padding:0 12px;font:inherit;font-size:14px;color:var(--ink);border-radius:0;margin-bottom:18px}
+#q:focus{border-color:var(--ink);outline:none}
+.ovgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:22px 28px}
+.ovc h3{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:0 0 6px;font-weight:400;font-size:10px;letter-spacing:.16em;text-transform:uppercase;border-bottom:1px solid var(--ink);padding-bottom:6px}
+.ovc h3 i{display:inline-block;width:8px;height:8px;margin-right:8px}
+.ovc h3 span:last-child{color:var(--slate);letter-spacing:.04em;font-size:10.5px;text-transform:none}
+.ovi{display:flex;justify-content:space-between;width:100%;background:transparent;border:0;border-bottom:1px solid var(--sand);padding:7px 0;cursor:pointer;text-align:left;font-size:12.5px}
+.ovi:hover .ovn{text-decoration:underline;text-underline-offset:3px}
+.ovi .ovk{font-size:11px;letter-spacing:.1em;font-weight:700}
+.ovempty{color:var(--slate);font-size:13px}
+.setrow{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;padding:12px 0;border-bottom:1px solid var(--sand)}
+.setlbl{font-size:9px;letter-spacing:.16em;color:var(--slate);text-transform:uppercase}
+.seg{display:flex;flex-wrap:wrap}
+.seg button{height:38px;padding:0 14px;border:1px solid var(--sand);margin-left:-1px;background:transparent;font-size:9px;letter-spacing:.14em;cursor:pointer;border-radius:0}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+
+
+/* fire & smoke */
+.fire{margin-top:4px;border-top:1px solid var(--ink);padding-top:10px}
+.fire .plbl{margin-bottom:8px}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--sand);border:1px solid var(--sand)}
+.ft{background:var(--card);padding:10px 12px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.ft dt{font-size:8.5px;letter-spacing:.14em;color:var(--slate);text-transform:uppercase}
+.ft dd{margin:0;font-family:var(--serif);font-size:26px;line-height:1.05}
+.ft small{font-size:10.5px;color:var(--slate)}
+.ft .flag{color:var(--warn);font-weight:700}
+.ft.c1 dd{color:var(--ok)} .ft.c2 dd{color:var(--warn)} .ft.cu dd{color:var(--bad)} .ft.nt dd{color:var(--stone)}
+
+
+/* phone layout: rate card + size list with a tier picker */
+.mob{display:none}
+.rcard{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--sand);border:1px solid var(--sand)}
+.rc{background:var(--card);padding:8px 8px 9px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.rc span{font-size:8px;letter-spacing:.12em;color:var(--slate);text-transform:uppercase}
+.rc b{font-size:16px;font-weight:400}
+.rc.pub b{font-weight:700}
+.rcard .rc.pub{border-bottom:2px solid var(--acc,var(--ink))}
+.tpick{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;margin-bottom:8px}
+.tpick::-webkit-scrollbar{display:none}
+.tpick button{flex:0 0 auto;height:34px;padding:0 12px;border:1px solid var(--sand);background:transparent;font-size:9px;letter-spacing:.13em;text-transform:uppercase;cursor:pointer;border-radius:0}
+.tpick button[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+table.msz{width:100%;border-collapse:collapse;table-layout:fixed}
+.msz th{font-weight:400;font-size:8.5px;letter-spacing:.13em;color:var(--head-fg);background:var(--head-bg);padding:7px 8px;text-align:right;text-transform:uppercase}
+.msz th:first-child,.msz td:first-child{text-align:left}
+.msz td{font-size:13px;padding:8px;border-bottom:1px solid var(--sand);background:var(--card);text-align:right;color:var(--ink)}
+.msz tbody tr:nth-child(even) td{background:var(--paper)}
+.msz [data-t]{display:none}
+html[data-mt="2"] .msz [data-t="2"],html[data-mt="3"] .msz [data-t="3"],html[data-mt="4"] .msz [data-t="4"],
+html[data-mt="5"] .msz [data-t="5"],html[data-mt="6"] .msz [data-t="6"],html[data-mt="7"] .msz [data-t="7"]{display:table-cell}
+html.pub-only .msz [data-t],html.pub-only .tpick,html.pub-only .rcard .rc:nth-child(n+3){display:none!important}
+html.pub-only .rcard{grid-template-columns:repeat(2,minmax(0,1fr))}
+
+@media (max-width:760px){
+  .bctx,.tbtn .tl,.bmark{display:none}
+  .nav{gap:4px}
+  .tbtn{padding:0 11px}
+  .pbody{grid-template-columns:minmax(0,1fr);gap:20px}
+  .pimg{min-height:0;aspect-ratio:4/5;max-height:62vh}
+  .pspecs{grid-template-columns:1fr}
+  .cats{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 10px}
+  .ceyebrow{display:none}
+  .desk{display:none}
+  .mob{display:block}
+  .pgin{padding-block:14px 28px}
+  .accbar{height:4px;width:64px;margin-bottom:8px}
+  .phead{margin-bottom:12px}
+  .pimg{aspect-ratio:4/3;max-height:46vh}
+  .pname{font-size:42px}
+  .prule{margin:12px 0}
+  .pspecs{grid-template-columns:1fr 1fr;gap:0 16px}
+  .spec{flex-direction:column;align-items:flex-start;gap:2px}
+  .spec dd{text-align:left}
+  .pprice{margin-top:18px;gap:18px}
+  .fgrid{grid-template-columns:1fr 1fr}
+  .ft dd{font-size:22px}
+  .fire .plbl span:last-child{display:none}
+  .count{min-width:48px}
+  .nbtn,.tbtn{height:40px}
+  .nbtn{width:40px}
+  .cfoot span:first-child{display:none}
+}
+@media (prefers-reduced-motion:reduce){#progfill{transition:none}}
+</style>
+<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{background:var(--paper)}</style>
+</head>
+<body>
+
+
+<div id="app">
+  <header id="bar">
+    <div class="brand">
+      <span class="bmark">JAIPUR LIVING</span>
+      <span class="bwrap"><span class="bname">Broadloom</span><span class="bed">CONTRACT</span></span>
+      <span class="bctx" id="ctx">Contract price list</span>
+    </div>
+    <nav class="nav" aria-label="Catalog">
+      <button class="tbtn" id="btnSet" type="button" aria-label="Display settings">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"><circle cx="12" cy="12" r="3"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4"/></svg><span class="tl">DISPLAY</span>
+      </button>
+      <button class="tbtn" id="btnIdx" type="button" aria-label="Contents and search">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span class="tl">CONTENTS</span>
+      </button>
+      <button class="nbtn" id="btnPrev" type="button" aria-label="Previous page"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <span class="count num" id="count">1 / 1</span>
+      <button class="nbtn" id="btnNext" type="button" aria-label="Next page"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"><path d="M9 5l7 7-7 7"/></svg></button>
+    </nav>
+  </header>
+  <main id="deck"></main>
+  <div id="prog"><div id="progfill"></div></div>
+</div>
+
+<div class="ovl" id="ovl" role="dialog" aria-modal="true" aria-label="Contents">
+  <div class="sheet">
+    <div class="shead"><span class="stitle" id="ovlt">Contents</span>
+      <button class="nbtn" id="ovlClose" type="button" aria-label="Close contents"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="sbody">
+      <input id="q" type="search" placeholder="Search by code, design or collection — e.g. HPR04, Sundrae, Horizon" autocomplete="off" aria-label="Search the catalog">
+      <div id="ovlbody"></div>
+    </div>
+  </div>
+</div>
+
+<div class="ovl" id="set" role="dialog" aria-modal="true" aria-label="Display settings">
+  <div class="sheet" style="width:min(640px,100%)">
+    <div class="shead"><span class="stitle">Display settings</span>
+      <button class="nbtn" id="setClose" type="button" aria-label="Close display settings"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="sbody">
+      <div class="setrow"><span class="setlbl">Price columns</span><div class="seg" data-key="tiers"><button type="button" data-val="all">WITH PLATINUM</button><button type="button" data-val="pub">MSRP &amp; MAP</button></div></div>
+      <div class="setrow"><span class="setlbl">Photo column</span><div class="seg" data-key="col"><button type="button" data-val="narrow">NARROW</button><button type="button" data-val="std">STANDARD</button><button type="button" data-val="wide">WIDE</button></div></div>
+      <div class="setrow"><span class="setlbl">Photo fit</span><div class="seg" data-key="fit"><button type="button" data-val="fill">FILL FRAME</button><button type="button" data-val="whole">WHOLE PHOTO</button></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const DATA = [{"code":"QTR01","coll":"Quarried Terrain","pre":"QTR","cat":"Textures","ck":"tex","design":"Delsyn","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[60,50,25]},{"code":"QTR02","coll":"Quarried Terrain","pre":"QTR","cat":"Textures","ck":"tex","design":"Delsyn","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[60,50,25]},{"code":"QTR03","coll":"Quarried Terrain","pre":"QTR","cat":"Textures","ck":"tex","design":"Delsyn","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[60,50,25]},{"code":"QPB01","coll":"Quarried Pebble","pre":"QPB","cat":"Textures","ck":"tex","design":"Terre","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[40,35,15]},{"code":"QPB02","coll":"Quarried Pebble","pre":"QPB","cat":"Textures","ck":"tex","design":"Terre","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[40,35,15]},{"code":"QPB03","coll":"Quarried Pebble","pre":"QPB","cat":"Textures","ck":"tex","design":"Terre","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[40,35,15]},{"code":"QSM01","coll":"Quarried Summit","pre":"QSM","cat":"Textures","ck":"tex","design":"Lirenne","fiber":"70% Wool, 30% PET","pile":"Medium","w":15,"l":90,"r":[50,40,20]},{"code":"QSM02","coll":"Quarried Summit","pre":"QSM","cat":"Textures","ck":"tex","design":"Lirenne","fiber":"70% Wool, 30% PET","pile":"Medium","w":15,"l":90,"r":[50,40,20]},{"code":"QBF01","coll":"Quarried Bluff","pre":"QBF","cat":"Textures","ck":"tex","design":"Mireth","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[60,50,25]},{"code":"QBF02","coll":"Quarried Bluff","pre":"QBF","cat":"Textures","ck":"tex","design":"Calvane","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[60,50,25]},{"code":"QBF03","coll":"Quarried Bluff","pre":"QBF","cat":"Textures","ck":"tex","design":"Calvane","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[60,50,25]},{"code":"QBF04","coll":"Quarried Bluff","pre":"QBF","cat":"Textures","ck":"tex","design":"Calvane","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[60,50,25]},{"code":"QRD01","coll":"Quarried Ridge","pre":"QRD","cat":"Textures","ck":"tex","design":"Imperious","fiber":"50% Wool, 50% PET","pile":"Medium","w":15,"l":90,"r":[55,45,25]},{"code":"QRD02","coll":"Quarried Ridge","pre":"QRD","cat":"Textures","ck":"tex","design":"Imperious","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[60,50,25]},{"code":"HLI01","coll":"Horizon Line","pre":"HLI","cat":"Flatweave","ck":"flat","design":"Zyrel","fiber":"70% Wool, 30% Polyester","pile":"Medium","w":15,"l":90,"r":[40,35,20]},{"code":"HLI02","coll":"Horizon Line","pre":"HLI","cat":"Flatweave","ck":"flat","design":"Zyrel","fiber":"70% Wool, 30% Polyester","pile":"Medium","w":15,"l":90,"r":[40,35,20]},{"code":"HLI03","coll":"Horizon Line","pre":"HLI","cat":"Flatweave","ck":"flat","design":"Cevara","fiber":"70% Wool, 30% Polyester","pile":"Medium","w":15,"l":90,"r":[40,35,20]},{"code":"HCT01","coll":"Horizon Contour","pre":"HCT","cat":"Flatweave","ck":"flat","design":"Thyven","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[35,30,15]},{"code":"HCT02","coll":"Horizon Contour","pre":"HCT","cat":"Flatweave","ck":"flat","design":"Thyven","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[35,30,15]},{"code":"HCT03","coll":"Horizon Contour","pre":"HCT","cat":"Flatweave","ck":"flat","design":"Thyven","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[35,30,15]},{"code":"HZE01","coll":"Horizon Edge","pre":"HZE","cat":"Flatweave","ck":"flat","design":"Selvane","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[40,30,15]},{"code":"HZE02","coll":"Horizon Edge","pre":"HZE","cat":"Flatweave","ck":"flat","design":"Selvane","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[35,30,15]},{"code":"HZE03","coll":"Horizon Edge","pre":"HZE","cat":"Flatweave","ck":"flat","design":"Selvane","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[35,30,15]},{"code":"HZE04","coll":"Horizon Edge","pre":"HZE","cat":"Flatweave","ck":"flat","design":"Selvane","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[35,30,15]},{"code":"HRN01","coll":"Horizon Range","pre":"HRN","cat":"Flatweave","ck":"flat","design":"Velori","fiber":"100% Wool","pile":"Medium","w":15,"l":90,"r":[45,40,20]},{"code":"HRN02","coll":"Horizon Range","pre":"HRN","cat":"Flatweave","ck":"flat","design":"Velori","fiber":"100% Wool","pile":"Medium","w":15,"l":90,"r":[45,40,20]},{"code":"HRN03","coll":"Horizon Range","pre":"HRN","cat":"Flatweave","ck":"flat","design":"Velori","fiber":"100% Wool","pile":"Medium","w":15,"l":90,"r":[45,40,20]},{"code":"HRD01","coll":"Horizon Divide","pre":"HRD","cat":"Flatweave","ck":"flat","design":"Thalwen","fiber":"60% Wool, 40% Cotton","pile":"Low","w":15,"l":90,"r":[35,30,15]},{"code":"HRD02","coll":"Horizon Divide","pre":"HRD","cat":"Flatweave","ck":"flat","design":"Thalwen","fiber":"60% Wool, 40% Cotton","pile":"Low","w":15,"l":90,"r":[35,30,15]},{"code":"HRD03","coll":"Horizon Divide","pre":"HRD","cat":"Flatweave","ck":"flat","design":"Thalwen","fiber":"60% Wool, 40% Cotton","pile":"Low","w":15,"l":90,"r":[35,30,15]},{"code":"HVS01","coll":"Horizon Vista","pre":"HVS","cat":"Flatweave","ck":"flat","design":"Tasine","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[35,30,15]},{"code":"HVS02","coll":"Horizon Vista","pre":"HVS","cat":"Flatweave","ck":"flat","design":"Tasine","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[35,30,15]},{"code":"HVS03","coll":"Horizon Vista","pre":"HVS","cat":"Flatweave","ck":"flat","design":"Oravel","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[35,30,15]},{"code":"HVS04","coll":"Horizon Vista","pre":"HVS","cat":"Flatweave","ck":"flat","design":"Tasine","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[35,30,15]},{"code":"HVS05","coll":"Horizon Vista","pre":"HVS","cat":"Flatweave","ck":"flat","design":"Tasine","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[35,30,15]},{"code":"HVE01","coll":"Horizon Enclave","pre":"HVE","cat":"Flatweave","ck":"flat","design":"Pompano","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[30,25,15]},{"code":"HVE02","coll":"Horizon Enclave","pre":"HVE","cat":"Flatweave","ck":"flat","design":"Pompano","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[30,25,15]},{"code":"HVE03","coll":"Horizon Enclave","pre":"HVE","cat":"Flatweave","ck":"flat","design":"Pompano","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[30,25,15]},{"code":"HVE04","coll":"Horizon Enclave","pre":"HVE","cat":"Flatweave","ck":"flat","design":"Pompano","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[30,25,15]},{"code":"HVE05","coll":"Horizon Enclave","pre":"HVE","cat":"Flatweave","ck":"flat","design":"Pompano","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[30,25,15]},{"code":"HVE06","coll":"Horizon Enclave","pre":"HVE","cat":"Flatweave","ck":"flat","design":"Pompano","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[30,25,15]},{"code":"HVE07","coll":"Horizon Enclave","pre":"HVE","cat":"Flatweave","ck":"flat","design":"Pompano","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[30,25,15]},{"code":"HVE08","coll":"Horizon Enclave","pre":"HVE","cat":"Flatweave","ck":"flat","design":"Pompano","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[30,25,15]},{"code":"HVE09","coll":"Horizon Enclave","pre":"HVE","cat":"Flatweave","ck":"flat","design":"Pompano","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[30,25,15]},{"code":"HVE10","coll":"Horizon Enclave","pre":"HVE","cat":"Flatweave","ck":"flat","design":"Pompano","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[30,25,15]},{"code":"HVE11","coll":"Horizon Enclave","pre":"HVE","cat":"Flatweave","ck":"flat","design":"Pompano","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[30,25,15]},{"code":"HVE12","coll":"Horizon Enclave","pre":"HVE","cat":"Flatweave","ck":"flat","design":"Pompano","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[30,25,15]},{"code":"HVE13","coll":"Horizon Enclave","pre":"HVE","cat":"Flatweave","ck":"flat","design":"Pompano","fiber":"100% Wool","pile":"Low","w":15,"l":90,"r":[30,25,15]},{"code":"HPR01","coll":"Hushed Prism","pre":"HPR","cat":"Plush Pile","ck":"plush","design":"Sundrae","fiber":"100% Wool","pile":"Medium","w":15,"l":40,"r":[55,50,25]},{"code":"HPR02","coll":"Hushed Prism","pre":"HPR","cat":"Plush Pile","ck":"plush","design":"Sundrae","fiber":"100% Wool","pile":"Medium","w":15,"l":40,"r":[55,50,25]},{"code":"HPR03","coll":"Hushed Prism","pre":"HPR","cat":"Plush Pile","ck":"plush","design":"Sundrae","fiber":"100% Wool","pile":"Medium","w":15,"l":40,"r":[55,50,25]},{"code":"HPR04","coll":"Hushed Prism","pre":"HPR","cat":"Plush Pile","ck":"plush","design":"Sundrae","fiber":"100% Wool","pile":"Medium","w":15,"l":40,"r":[55,50,25]},{"code":"HPR05","coll":"Hushed Prism","pre":"HPR","cat":"Plush Pile","ck":"plush","design":"Sundrae","fiber":"100% Wool","pile":"Medium","w":15,"l":40,"r":[55,50,25]},{"code":"HPR06","coll":"Hushed Prism","pre":"HPR","cat":"Plush Pile","ck":"plush","design":"Sundrae","fiber":"100% Wool","pile":"Medium","w":15,"l":40,"r":[55,50,25]},{"code":"HPR07","coll":"Hushed Prism","pre":"HPR","cat":"Plush Pile","ck":"plush","design":"Sundrae","fiber":"100% Wool","pile":"Medium","w":15,"l":40,"r":[55,50,25]},{"code":"HPR08","coll":"Hushed Prism","pre":"HPR","cat":"Plush Pile","ck":"plush","design":"Sundrae","fiber":"100% Wool","pile":"Medium","w":15,"l":40,"r":[55,50,25]},{"code":"HPR09","coll":"Hushed Prism","pre":"HPR","cat":"Plush Pile","ck":"plush","design":"Sundrae","fiber":"100% Wool","pile":"Medium","w":15,"l":40,"r":[55,50,25]},{"code":"HPR10","coll":"Hushed Prism","pre":"HPR","cat":"Plush Pile","ck":"plush","design":"Sundrae","fiber":"100% Wool","pile":"Medium","w":15,"l":40,"r":[55,50,25]},{"code":"HPR11","coll":"Hushed Prism","pre":"HPR","cat":"Plush Pile","ck":"plush","design":"Sundrae","fiber":"100% Wool","pile":"Medium","w":15,"l":40,"r":[55,50,25]},{"code":"HPR12","coll":"Hushed Prism","pre":"HPR","cat":"Plush Pile","ck":"plush","design":"Sundrae","fiber":"100% Wool","pile":"Medium","w":15,"l":40,"r":[55,50,25]},{"code":"HPR13","coll":"Hushed Prism","pre":"HPR","cat":"Plush Pile","ck":"plush","design":"Sundrae","fiber":"100% Wool","pile":"Medium","w":15,"l":40,"r":[55,50,25]},{"code":"HPR14","coll":"Hushed Prism","pre":"HPR","cat":"Plush Pile","ck":"plush","design":"Sundrae","fiber":"100% Wool","pile":"Medium","w":15,"l":40,"r":[55,50,25]},{"code":"HPR15","coll":"Hushed Prism","pre":"HPR","cat":"Plush Pile","ck":"plush","design":"Sundrae","fiber":"100% Wool","pile":"Medium","w":15,"l":40,"r":[55,50,25]},{"code":"HPR16","coll":"Hushed Prism","pre":"HPR","cat":"Plush Pile","ck":"plush","design":"Sundrae","fiber":"100% Wool","pile":"Medium","w":15,"l":40,"r":[55,50,25]},{"code":"GDA01","coll":"Glowing Dawn","pre":"GDA","cat":"Lustrous","ck":"lus","design":"Corvae","fiber":"100% Nylon","pile":"Medium","w":15,"l":75,"r":[55,45,25]},{"code":"GDA02","coll":"Glowing Dawn","pre":"GDA","cat":"Lustrous","ck":"lus","design":"Nirelle","fiber":"100% Nylon","pile":"Medium","w":15,"l":75,"r":[60,50,25]},{"code":"GDA03","coll":"Glowing Dawn","pre":"GDA","cat":"Lustrous","ck":"lus","design":"Corvae","fiber":"100% Nylon","pile":"Medium","w":15,"l":75,"r":[55,45,25]},{"code":"GDA04","coll":"Glowing Dawn","pre":"GDA","cat":"Lustrous","ck":"lus","design":"","fiber":"100% Nylon","pile":"Medium","w":15,"l":75,"r":[55,45,25]},{"code":"GDA05","coll":"Glowing Dawn","pre":"GDA","cat":"Lustrous","ck":"lus","design":"","fiber":"100% Nylon","pile":"Medium","w":15,"l":75,"r":[55,50,25]}];
+const AS_OF = 'November 5, 2026';
+const TIERS = ['MSRP','MAP','Platinum'];
+const SHOW = [0,1,2];
+const KEY = 'broadloom-contract';
+const TS = SHOW.map(i => TIERS[i]);
+const rv = d => SHOW.map(i => d.r[i]);
+const SIZES = [[6,9],[8,10],[9,12],[10,14],[12,15]];
+const CATS = [['Textures','tex'],['Flatweave','flat'],['Plush Pile','plush'],['Lustrous','lus']];
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const usd = n => '$' + n.toLocaleString('en-US');
+const usd2 = n => '$' + n.toFixed(2);
+const store = { get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch(e){ return null; } }, set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} } };
+
+// group: collections in catalog order
+const colls = [];
+DATA.forEach(d => { let c = colls.find(x => x.pre === d.pre); if (!c) colls.push(c = { pre:d.pre, name:d.coll, cat:d.cat, ck:d.ck, items:[] }); c.items.push(d); });
+const range = (arr) => { const lo = Math.min(...arr), hi = Math.max(...arr); return lo === hi ? usd(lo) : usd(lo) + '–' + hi; };
+
+function ratesTable(d){
+  return `<table class="ct rate num"><thead><tr><th>Per sq ft</th>${TS.map(t=>`<th>${t}</th>`).join('')}</tr></thead>
+  <tbody><tr><td>${d.w}' × ${d.l}' roll</td>${rv(d).map(v=>`<td>${usd2(v)}</td>`).join('')}</tr></tbody></table>`;
+}
+function rateCard(d){
+  return `<div class="rcard num">${rv(d).map((v,i)=>`<div class="rc${i<2?' pub':''}"><span>${TS[i]}</span><b>${usd2(v)}</b></div>`).join('')}</div>`;
+}
+function sizeList(d){
+  if (SHOW.length <= 3) return `<table class="msz num"><thead><tr><th>Size</th>${TS.map(t=>`<th>${t}</th>`).join('')}</tr></thead><tbody>${
+    SIZES.map(([a,b])=>`<tr><td>${a}' × ${b}'</td>${rv(d).map(v=>`<td>${usd(v*a*b)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  return `<div class="tpick" role="group" aria-label="Choose a price tier">${TIERS.slice(2).map((t,k)=>`<button type="button" data-mt="${k+2}">${t}</button>`).join('')}</div>
+  <table class="msz num"><thead><tr><th>Size</th><th>MSRP</th><th>MAP</th>${TIERS.slice(2).map((t,k)=>`<th data-t="${k+2}">${t}</th>`).join('')}</tr></thead><tbody>${
+    SIZES.map(([a,b])=>`<tr><td>${a}' × ${b}'</td><td>${usd(d.r[0]*a*b)}</td><td>${usd(d.r[1]*a*b)}</td>${d.r.slice(2).map((v,k)=>`<td data-t="${k+2}">${usd(v*a*b)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+}
+function sizeTable(d){
+  return `<table class="ct num"><thead><tr><th>Size</th>${TS.map(t=>`<th>${t}</th>`).join('')}</tr></thead><tbody>${
+    SIZES.map(([a,b])=>`<tr><td>${a}' × ${b}'</td>${rv(d).map(v=>`<td>${usd(v*a*b)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+}
+const FIRE_AS_OF = 'ITTS lab reports dated October 16, 2026';
+// [radiant class, radiant avg W/cm², smoke Dm flaming, smoke Dm non-flaming (null = no usable result), hexapod (null = not tested)]
+const FIRE = {
+  HVE:['I',0.98,168,387,null], HCT:['I',0.93,93,290,null], QRD01:['I',0.93,222,288,null], QTR:['I',0.93,243,442,null],
+  HVS:['I',0.91,125,404,null], HZE:['I',0.85,100,317,null], HPR:['I',0.77,574,311,3.5], QRD02:['I',0.73,188,299,null],
+  QBF:['I',0.62,167,311,4.0], HLI:['I',0.57,188,460,null], QSM:['I',0.53,91,357,null], HRN:['I',0.50,125,406,null],
+  HRD:['II',0.42,207,436,4.5], GDA:['U',0.20,220,null,4.0] };
+function fireBlock(d){
+  const f = FIRE[d.code] || FIRE[d.pre];
+  if (!f) return `<div class="fire"><div class="plbl"><span><b>Fire &amp; smoke performance</b></span></div>
+    <dl class="fgrid"><div class="ft nt"><dt>Radiant panel · ASTM E648</dt><dd>Not tested</dd><small>${esc(d.coll)} was not in the first test set.</small></div></dl></div>`;
+  const [c, rad, sf, sn, hex] = f;
+  const cls = c === 'U' ? ['cu','Unclassified','Below the Class II minimum of 0.22'] : c === 'II' ? ['c2','Class II','Class II range is 0.22–0.44'] : ['c1','Class I','Class I minimum is 0.45'];
+  const smoke = v => v > 450 ? `<span class="flag">Over the 450 limit</span>` : '450 maximum';
+  return `<div class="fire"><div class="plbl"><span><b>Fire &amp; smoke performance</b> · ${FIRE_AS_OF}</span><span>Loose lay on 6mm FRC board</span></div>
+  <dl class="fgrid num">
+    <div class="ft ${cls[0]}"><dt>Radiant panel · ASTM E648</dt><dd>${cls[1]}</dd><small>${rad.toFixed(2)} W/cm² average · ${cls[2]}</small></div>
+    <div class="ft"><dt>Smoke density, flaming · E662</dt><dd>${sf}</dd><small>Specific optical density (Dm) · ${smoke(sf)}</small></div>
+    <div class="ft${sn == null ? ' nt' : ''}"><dt>Smoke density, non-flaming · E662</dt><dd>${sn == null ? 'Inconclusive' : sn}</dd><small>${sn == null ? 'The lab did not report a usable result' : 'Specific optical density (Dm) · ' + smoke(sn)}</small></div>
+    ${hex != null ? `<div class="ft"><dt>Hexapod · 12,000 cycles</dt><dd>${hex.toFixed(1)}</dd><small>Appearance retention, 5 = negligible change</small></div>` : ''}
+  </dl>
+  <p class="note">Ratings apply to the tested assembly. Glue-down or cushion-backed installations may need their own test.</p></div>`;
+}
+function skuPage(d, i){
+  const acc = `var(--${d.ck})`;
+  const name = d.design || d.coll;
+  return `<section class="pg" id="p-${d.code}" data-code="${d.code}" data-ctx="${esc(d.coll)} · ${esc(d.cat)}" data-acc="${d.ck}" aria-label="${d.code}">
+  <div class="pgin" style="--acc:${acc}">
+    <div class="accbar" style="background:${acc}"></div>
+    <div class="phead"><span class="pcoll">${esc(d.coll)}</span><span class="pmeta">${esc(d.cat)} &nbsp;·&nbsp; Broadloom by Jaipur Living</span></div>
+    <div class="pbody">
+      <div class="pimg"><img data-src="images/${d.code}.jpg" alt="${esc(name)} ${d.code} in a room setting"></div>
+      <div class="pinfo">
+        <div class="pcode" style="color:${acc}">${d.code}</div>
+        <h2 class="pname${d.design ? '' : ' tbd'}">${esc(name)}</h2>
+        <div class="prule" style="background:${acc}"></div>
+        <dl class="pspecs">
+          <div class="spec"><dt>Collection</dt><dd>${esc(d.coll)}</dd></div>
+          <div class="spec"><dt>Category</dt><dd>${esc(d.cat)}</dd></div>
+          <div class="spec"><dt>Content</dt><dd>${esc(d.fiber)}</dd></div>
+          <div class="spec"><dt>Pile height</dt><dd>${esc(d.pile)}</dd></div>
+          <div class="spec"><dt>Roll width</dt><dd class="num">${d.w}'</dd></div>
+          <div class="spec"><dt>Roll length</dt><dd class="num">${d.l}'</dd></div>
+        </dl>
+        <div class="pprice">
+          <div><div class="plbl"><span><b>Rate per square foot</b> · USD</span><span class="desk">MSRP · MAP · Platinum</span><span class="mob">${d.w}' × ${d.l}' roll</span></div><div class="tw desk">${ratesTable(d)}</div><div class="mob">${rateCard(d)}</div></div>
+          <div><div class="plbl"><span><b>Standard sizes</b> · USD</span><span>Rate × square footage</span></div><div class="tw desk">${sizeTable(d)}</div><div class="mob">${sizeList(d)}</div>
+          <p class="note">Each standard size is the per-square-foot rate times the rug's square footage. Custom sizes are cut from the ${d.w}' roll and priced at the same rate.</p></div>
+          ${fireBlock(d)}
+        </div>
+      </div>
+    </div>
+  </div></section>`;
+}
+function coverPage(){
+  const n = c => DATA.filter(d=>d.cat===c).length, cn = c => colls.filter(x=>x.cat===c).length;
+  return `<section class="pg cover" id="p-cover" data-ctx="Contract price list" data-acc="" aria-label="Cover"><div class="pgin">
+    <div class="ctop"><div class="jl">JAIPUR<br>LIVING</div><div class="ceyebrow">Contract price list<br>Pricing as of ${AS_OF}</div></div>
+    <div><h1 class="ctitle">Broadloom <em>by</em><br>Jaipur Living</h1>
+      <div class="csub num">${colls.length} collections · ${DATA.length} SKUs · MSRP, MAP and Platinum pricing, per square foot and in five standard sizes</div></div>
+    <div class="cats">${CATS.map(([c,k])=>`<button class="cat" type="button" data-jump="${DATA.find(d=>d.cat===c).code}"><span class="sw" style="background:var(--${k})"></span><span class="cn">${c}</span><span class="cc num">${cn(c)} collection${cn(c)>1?'s':''} · ${n(c)} SKUs</span></button>`).join('')}</div>
+    <div class="cfoot"><span>Open <b>Contents</b> to search by code, design or collection. Use <kbd>←</kbd> <kbd>→</kbd> or swipe to page.</span><span>The full per-square-foot price list is the last page.</span></div>
+  </div></section>`;
+}
+function appendix(){
+  let rows = '';
+  CATS.forEach(([c,k]) => colls.filter(x=>x.cat===c).forEach(col => {
+    rows += `<tr class="apxgrp"><td colspan="10"><i style="background:var(--${k})"></i>${esc(col.name)} &nbsp;·&nbsp; ${esc(c)}</td></tr>`;
+    col.items.forEach(d => rows += `<tr><td data-jump="${d.code}">${d.code}</td><td>${esc(d.design || '—')}</td>${rv(d).map(v=>`<td>${usd2(v)}</td>`).join('')}</tr>`);
+  }));
+  return `<section class="pg" id="p-prices" data-ctx="Price list · per square foot" data-acc="" aria-label="Price list"><div class="pgin">
+    <div class="accbar" style="background:var(--ink)"></div>
+    <div class="phead"><span class="pcoll">Price list — rate per square foot</span><span class="pmeta num">${DATA.length} SKUs · USD · as of ${AS_OF}</span></div>
+    <div class="tw"><table class="ct apx num"><thead><tr><th>Code</th><th>Design</th>${TS.map(t=>`<th>${t}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="note">Tap a code to open its page.</p>
+  </div></section>`;
+}
+function contents(q){
+  q = (q||'').trim().toLowerCase();
+  const hit = d => !q || [d.code, d.design, d.coll, d.cat, d.fiber].join(' ').toLowerCase().includes(q);
+  const html = colls.map(c => {
+    const items = c.items.filter(hit); if (!items.length) return '';
+    return `<div class="ovc"><h3><span><i style="background:var(--${c.ck})"></i>${esc(c.name)}</span><span class="num">MSRP ${range(c.items.map(d=>d.r[0]))} / sq ft</span></h3>${
+      items.map(d=>`<button class="ovi" type="button" data-jump="${d.code}"><span class="ovn">${esc(d.design || 'Design name TBD')}</span><span class="ovk" style="color:var(--${d.ck})">${d.code}</span></button>`).join('')}</div>`;
+  }).join('');
+  $('#ovlbody').innerHTML = html ? `<div class="ovgrid">${html}</div>` : `<p class="ovempty">No SKUs match “${esc(q)}”. Try a catalog code like HPR04 or a collection name.</p>`;
+}
+
+// build
+const deck = $('#deck');
+deck.innerHTML = coverPage() + DATA.map(skuPage).join('') + appendix();
+const pages = [...deck.children];
+const ids = pages.map(p => p.dataset.code || p.id.slice(2));
+contents('');
+
+// settings
+const settings = Object.assign({ tiers:'all', col:'std', fit:'fill', mt:'2' }, store.get(KEY + '-view') || {});
+function applySettings(){
+  const cl = document.documentElement.classList;
+  cl.toggle('pub-only', settings.tiers === 'pub'); cl.toggle('img-wide', settings.col === 'wide');
+  cl.toggle('img-narrow', settings.col === 'narrow'); cl.toggle('fit-whole', settings.fit === 'whole');
+  document.documentElement.dataset.mt = settings.mt;
+  document.querySelectorAll('.tpick button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mt === settings.mt)));
+  document.querySelectorAll('.seg').forEach(g => g.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(settings[g.dataset.key] === b.dataset.val))));
+  store.set(KEY + '-view', settings);
+}
+applySettings();
+
+// images: load current page ±2
+function loadNear(i){ for (let k = i-2; k <= i+2; k++){ const p = pages[k]; if (!p) continue; p.querySelectorAll('img[data-src]').forEach(img => { img.src = img.dataset.src; img.removeAttribute('data-src'); }); } }
+
+let cur = -1;
+const count = $('#count'), ctx = $('#ctx'), fill = $('#progfill'), prev = $('#btnPrev'), next = $('#btnNext');
+function sync(){
+  const i = Math.round(deck.scrollLeft / (deck.clientWidth || 1));
+  if (i === cur) return; cur = i;
+  const p = pages[i];
+  count.textContent = (i+1) + ' / ' + pages.length;
+  ctx.textContent = p.dataset.ctx || '';
+  fill.style.width = ((i+1) / pages.length * 100) + '%';
+  fill.style.background = p.dataset.acc ? `var(--${p.dataset.acc})` : 'var(--ink)';
+  prev.disabled = i === 0; next.disabled = i === pages.length - 1;
+  loadNear(i);
+  try { history.replaceState(null, '', '#' + ids[i]); } catch(e){}
+}
+function go(n, smooth = true){
+  const i = Math.max(0, Math.min(n, pages.length - 1)); loadNear(i);
+  deck.scrollTo({ left: i * deck.clientWidth, behavior: smooth && !matchMedia('(prefers-reduced-motion: reduce)').matches ? 'smooth' : 'auto' });
+}
+const goCode = code => { const i = ids.indexOf(code); if (i >= 0) go(i); return i >= 0; };
+let raf = 0;
+deck.addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; sync(); }); }, { passive:true });
+window.addEventListener('resize', () => { if (cur >= 0) deck.scrollLeft = cur * deck.clientWidth; });
+prev.addEventListener('click', () => go(cur - 1));
+next.addEventListener('click', () => go(cur + 1));
+
+const ovl = $('#ovl'), setp = $('#set'), q = $('#q');
+const close = () => { ovl.classList.remove('on'); setp.classList.remove('on'); };
+$('#btnIdx').addEventListener('click', () => { setp.classList.remove('on'); ovl.classList.add('on'); q.focus(); });
+$('#btnSet').addEventListener('click', () => { ovl.classList.remove('on'); setp.classList.add('on'); });
+$('#ovlClose').addEventListener('click', close); $('#setClose').addEventListener('click', close);
+[ovl, setp].forEach(o => o.addEventListener('click', e => { if (e.target === o) close(); }));
+q.addEventListener('input', () => contents(q.value));
+q.addEventListener('keydown', e => { if (e.key === 'Enter'){ const b = $('#ovlbody [data-jump]'); if (b){ close(); goCode(b.dataset.jump); } } });
+document.addEventListener('click', e => { const t = e.target.closest('.tpick button'); if (t){ settings.mt = t.dataset.mt; applySettings(); return; } const b = e.target.closest('[data-jump]'); if (!b) return; close(); goCode(b.dataset.jump); });
+setp.addEventListener('click', e => { const b = e.target.closest('.seg button'); if (!b) return; settings[b.parentElement.dataset.key] = b.dataset.val; applySettings(); });
+window.addEventListener('keydown', e => {
+  if (e.target === q) { if (e.key === 'Escape') close(); return; }
+  if (e.key === 'ArrowRight' || e.key === 'PageDown'){ e.preventDefault(); go(cur + 1); }
+  else if (e.key === 'ArrowLeft' || e.key === 'PageUp'){ e.preventDefault(); go(cur - 1); }
+  else if (e.key === 'Escape') close();
+  else if (e.key === '/'){ e.preventDefault(); $('#btnIdx').click(); }
+});
+window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (h && h !== ids[cur]) goCode(h); });
+
+// start: hash, then last page viewed
+const h = location.hash.slice(1);
+let start = ids.indexOf(h);
+if (start < 0) start = Math.min(+(store.get(KEY + '-page') || 0), pages.length - 1) || 0;
+requestAnimationFrame(() => { deck.scrollLeft = start * deck.clientWidth; loadNear(start); sync(); });
+setInterval(() => store.set(KEY + '-page', cur), 2000);
+</script>
+
+</body>
+</html>
