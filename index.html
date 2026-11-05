@@ -179,6 +179,29 @@ table.apx{min-width:720px}
 .ft.c1 dd{color:var(--ok)} .ft.c2 dd{color:var(--warn)} .ft.cu dd{color:var(--bad)} .ft.nt dd{color:var(--stone)}
 
 
+/* price summary */
+.ct.sum{min-width:760px}
+.ct.sum th:first-child,.ct.sum td:first-child{width:22%}
+.ct.sum th:nth-child(2),.ct.sum td:nth-child(2){width:7%;text-align:right}
+.ct.sum td{font-size:12.5px;padding:8px;white-space:nowrap}
+.ct.sum td:nth-child(3),.ct.sum th:nth-child(3){border-right:0}
+.ct.sum td:nth-child(2),.ct.sum th:nth-child(2){border-right:1px solid var(--sand)}
+.ct.sum td:first-child{white-space:normal}
+.ct.sum tbody tr{cursor:pointer}
+.ct.sum tbody tr:hover td{background:var(--linen)}
+.ct.sum td:first-child b{display:block;font-weight:400;color:var(--ink)}
+.ct.sum td:first-child small{font-size:9px;letter-spacing:.14em;color:var(--slate);text-transform:uppercase}
+.ct.sum td:first-child i{display:inline-block;width:8px;height:8px;margin-right:8px}
+.ct.sum td.x{color:var(--ink);border-left:1px solid var(--sand)}
+.ct.sum th.x{border-left:1px solid var(--sand)}
+.fc{font-size:10px;letter-spacing:.1em;font-weight:700;white-space:nowrap}
+.fc.c1{color:var(--ok)} .fc.c2{color:var(--warn)} .fc.cu{color:var(--bad)} .fc.nt{color:var(--stone);font-weight:400}
+html.pub-only .ct.sum th:nth-child(n+5):not(.x),html.pub-only .ct.sum td:nth-child(n+5):not(.x){display:none}
+html.pub-only .ct.sum{min-width:0}
+.sumlink{display:flex;justify-content:space-between;align-items:center;width:100%;background:var(--card);border:1px solid var(--sand);padding:12px 14px;margin-bottom:18px;cursor:pointer;text-align:left;font-size:12.5px}
+.sumlink:hover{border-color:var(--ink)}
+.sumlink span:first-child{font-size:10px;letter-spacing:.16em;text-transform:uppercase;font-weight:700}
+
 /* phone layout: rate card + size list with a tier picker */
 .mob{display:none}
 .rcard{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--sand);border:1px solid var(--sand)}
@@ -266,6 +289,7 @@ html.pub-only .rcard{grid-template-columns:repeat(2,minmax(0,1fr))}
     <div class="shead"><span class="stitle" id="ovlt">Contents</span>
       <button class="nbtn" id="ovlClose" type="button" aria-label="Close contents"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
     <div class="sbody">
+      <button class="sumlink" type="button" data-jump="summary"><span>Price summary by collection</span><span>All collections on one page →</span></button>
       <input id="q" type="search" placeholder="Search by code, design or collection — e.g. HPR04, Sundrae, Horizon" autocomplete="off" aria-label="Search the catalog">
       <div id="ovlbody"></div>
     </div>
@@ -303,7 +327,7 @@ const store = { get(k){ try { return JSON.parse(localStorage.getItem(k)); } catc
 // group: collections in catalog order
 const colls = [];
 DATA.forEach(d => { let c = colls.find(x => x.pre === d.pre); if (!c) colls.push(c = { pre:d.pre, name:d.coll, cat:d.cat, ck:d.ck, items:[] }); c.items.push(d); });
-const range = (arr) => { const lo = Math.min(...arr), hi = Math.max(...arr); return lo === hi ? usd(lo) : usd(lo) + '–' + hi; };
+const range = (arr) => { const lo = Math.min(...arr), hi = Math.max(...arr); return lo === hi ? usd(lo) : usd(lo) + '–' + hi.toLocaleString('en-US'); };
 
 function ratesTable(d){
   return `<table class="ct rate num"><thead><tr><th>Per sq ft</th>${TS.map(t=>`<th>${t}</th>`).join('')}</tr></thead>
@@ -384,7 +408,25 @@ function coverPage(){
     <div><h1 class="ctitle">Broadloom <em>by</em><br>Jaipur Living</h1>
       <div class="csub num">${colls.length} collections · ${DATA.length} SKUs · MSRP, MAP and Platinum pricing, per square foot and in five standard sizes</div></div>
     <div class="cats">${CATS.map(([c,k])=>`<button class="cat" type="button" data-jump="${DATA.find(d=>d.cat===c).code}"><span class="sw" style="background:var(--${k})"></span><span class="cn">${c}</span><span class="cc num">${cn(c)} collection${cn(c)>1?'s':''} · ${n(c)} SKUs</span></button>`).join('')}</div>
-    <div class="cfoot"><span>Open <b>Contents</b> to search by code, design or collection. Use <kbd>←</kbd> <kbd>→</kbd> or swipe to page.</span><span>The full per-square-foot price list is the last page.</span></div>
+    <div class="cfoot"><span>Open <b>Contents</b> to search by code, design or collection. Use <kbd>←</kbd> <kbd>→</kbd> or swipe to page.</span><span>Next page: price summary by collection. The full price list by SKU is the last page.</span></div>
+  </div></section>`;
+}
+function collFire(c){
+  const cls = [...new Set(c.items.map(d => { const f = FIRE[d.code] || FIRE[d.pre]; return f ? f[0] : null; }))];
+  if (cls.length === 1 && cls[0] === null) return '<span class="fc nt">Not tested</span>';
+  return cls.map(k => k === 'I' ? '<span class="fc c1">CLASS I</span>' : k === 'II' ? '<span class="fc c2">CLASS II</span>' : k === 'U' ? '<span class="fc cu">UNCLASSIFIED</span>' : '<span class="fc nt">Not tested</span>').join(' ');
+}
+function summaryPage(){
+  const rows = CATS.map(([c,k]) => colls.filter(x=>x.cat===c).map(col => {
+    const per = TS.map((t,i) => range(col.items.map(d => rv(d)[i])));
+    const r810 = range(col.items.map(d => rv(d)[0]*80));
+    return `<tr data-jump="${col.items[0].code}"><td><b><i style="background:var(--${k})"></i>${esc(col.name)}</b><small>${esc(c)}</small></td><td>${col.items.length}</td>${per.map(v=>`<td>${v}</td>`).join('')}<td class="x">${r810}</td><td class="x">${collFire(col)}</td></tr>`;
+  }).join('')).join('');
+  return `<section class="pg" id="p-summary" data-ctx="Price summary · by collection" data-acc="" aria-label="Price summary"><div class="pgin">
+    <div class="accbar" style="background:var(--ink)"></div>
+    <div class="phead"><span class="pcoll">Price summary — by collection</span><span class="pmeta num">Rate per square foot · USD · as of ${AS_OF}</span></div>
+    <div class="tw"><table class="ct sum num"><thead><tr><th>Collection</th><th>SKUs</th>${TS.map(t=>`<th>${t}</th>`).join('')}<th class="x">8' × 10' at MSRP</th><th class="x">Radiant panel</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="note">Where colors in a collection are priced differently, the column shows the low–high range. Tap a collection to open its first SKU. Radiant panel classes are from ITTS lab reports dated October 16, 2026; each SKU page has the full fire and smoke results.</p>
   </div></section>`;
 }
 function appendix(){
@@ -413,7 +455,7 @@ function contents(q){
 
 // build
 const deck = $('#deck');
-deck.innerHTML = coverPage() + DATA.map(skuPage).join('') + appendix();
+deck.innerHTML = coverPage() + summaryPage() + DATA.map(skuPage).join('') + appendix();
 const pages = [...deck.children];
 const ids = pages.map(p => p.dataset.code || p.id.slice(2));
 contents('');
